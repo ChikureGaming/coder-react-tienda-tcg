@@ -1,48 +1,79 @@
 import { useEffect, useState } from "react";
-import { products } from "../../storeproduct";
 import ItemList from "../itemList/ItemList";
-import ItemCounter from "../itemCounter/ItemCounter";
 import {useParams} from "react-router-dom"
+import DotLoader from "react-spinners/DotLoader"
+import { getDocs, collection, query, where } from "firebase/firestore"
+import { db } from "../../firebaseConfig"
+
+
+const override = {
+  display: "block",
+  margin: "0 auto",
+  borderColor: "red",
+}
 
 const ItemListContainer = () => {
-
-  const {categoryName} = useParams()
-  
-  console.log(categoryName)
+  const { categoryName } = useParams()
 
   const [items, setItems] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
 
+  useEffect(() => {
+    setIsLoading(true)
 
-useEffect(() => {
-  
-  const productosFiltered = products.filter( productos => productos.category === categoryName )
+    const itemCollection = collection(db, "products")
 
-  const inventario = new Promise((resolve, reject) => {
+    if (categoryName) {
+      const q = query(itemCollection, where("category", "==", categoryName))
+      getDocs(q)
+        .then((res) => {
+          const products = res.docs.map((product) => {
+            return {
+              ...product.data(),
+              id: product.id,
+            }
+          })
+
+          setItems(products)
+        })
+        .catch((err) => console.log(err))
+    } else {
+      getDocs(itemCollection)
+        .then((res) => {
+          const products = res.docs.map((product) => {
+            return {
+              ...product.data(),
+              id: product.id,
+            }
+          })
+
+          setItems(products)
+        })
+        .catch((err) => console.log(err))
+    }
+
     setTimeout(() => {
-      resolve( categoryName ? productosFiltered : products  );
-    }, 400);
-  });
-  
-  inventario
-  .then((conexion) => {
-    setItems(conexion)
-  })
-  .catch((sinconexion) => {
-    console.log("error de conexión")
-  });
-  console.log("se hizo la peticion")
-}, [categoryName]);
+      setIsLoading(false)
+    }, 1000)
+  }, [categoryName])
 
+  return (
+    <div className="light">
+      {isLoading ? (
+        <DotLoader
+          color={"#5698ee"}
+          cssOverride={override}
+          size={75}
+          aria-label="Loading Spinner"
+          data-testid="loader"
+        />
+      ) : (
+        <ItemList items={items} />
+      )}
 
-
-    return (
-
-    <div>
-      <ItemCounter initial={1} stock={30}/>
-      <ItemList items={items} />
+      {}
     </div>
+  )
+}
 
-    )
-  }
-
-    export default ItemListContainer
+export default ItemListContainer
